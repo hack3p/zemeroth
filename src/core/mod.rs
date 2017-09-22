@@ -13,6 +13,9 @@ pub mod effect;
 pub mod map;
 pub mod execute;
 
+#[macro_use]
+pub mod component_storage;
+
 mod check;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -82,9 +85,41 @@ impl<'a> Iterator for ObjIdIter<'a> {
     }
 }
 
+// -----------------------------------------------
+
+pub mod component {
+    #[derive(Clone, Debug)]
+    pub struct Move {
+        pub move_points: i32,
+    }
+
+    #[derive(Clone, Debug)]
+    pub struct Health {
+        pub points: i32,
+    }
+
+    #[derive(Clone, Debug)]
+    pub struct Attack {
+        pub active_points: i32,
+    }
+}
+
+// TODO: How can I represent UnitTypes? Can I use them with other types of objects?
+
+// TODO: How can I implement object_ids_at? ObjId iterator + filter?
+
+make_storage!(Storage<ObjId>: {
+    health: component::Health,
+    movement: component::Move,
+    attack: component::Attack,
+    unit: Unit,
+});
+
+// -----------------------------------------------
+
 #[derive(Clone, Debug)]
 pub struct State {
-    units: HashMap<ObjId, Unit>,
+    units: HashMap<ObjId, Unit>, // TODO: replace with `Storage`
     map: HexMap<TileType>,
     next_obj_id: ObjId,
     player_id: PlayerId,
@@ -93,6 +128,25 @@ pub struct State {
 
 impl State {
     pub fn new() -> Self {
+        {
+            let mut state = Storage::new();
+            println!("state: {:#?}", state);
+            let id = ObjId(0);
+            println!("initital: is_exist = {}", state.is_exist(id));
+            let health = component::Health { points: 3 };
+            let attack = component::Attack { active_points: 1 };
+            state.health.insert(id, health);
+            println!("added: is_exist = {}", state.is_exist(id));
+            println!("added: {:?}", state.health.get(id));
+            state.health.get_mut(id).points = 7;
+            println!("updated: {:?}", state.health.get(id));
+            state.attack.insert(id, attack);
+            state.debug_print_entity(id);
+            println!("state: {:#?}", state);
+            state.health.remove(id);
+            println!("removed: is_exist: {}", state.is_exist(id));
+        }
+
         let radius = map::Distance(5); // TODO: pass `Options` struct
         let mut map = HexMap::new(radius);
         {
